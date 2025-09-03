@@ -237,7 +237,7 @@ const RegisterPage = ({ onLogin }) => {
 
         {/* Back to Forum */}
         <div className="text-center mt-6">
-          <Link to="/forum" className="text-gray-400 hover:text-white transition-colors">
+          <Link to="/" className="text-gray-400 hover:text-white transition-colors">
             ← Вернуться на форум
           </Link>
         </div>
