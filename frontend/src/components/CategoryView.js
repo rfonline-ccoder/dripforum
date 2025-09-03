@@ -100,7 +100,7 @@ const CategoryView = () => {
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center space-x-2 text-sm text-gray-400 mb-6">
-        <Link to="/forum" className="hover:text-purple-400 transition-colors">Форум</Link>
+        <Link to="/" className="hover:text-purple-400 transition-colors">Форум</Link>
         <ChevronLeft className="w-4 h-4 rotate-180" />
         <span className="text-white">{category.name}</span>
       </nav>
