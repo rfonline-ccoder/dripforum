@@ -5,7 +5,6 @@ import axios from 'axios';
 
 // Components
 import Header from './components/Header';
-import HomePage from './components/HomePage';
 import ForumMain from './components/ForumMain';
 import TopicView from './components/TopicView';
 import CategoryView from './components/CategoryView';
