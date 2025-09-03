@@ -78,17 +78,16 @@ function App() {
         <Header user={user} onLogout={logout} />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/forum" element={<ForumMain />} />
+            <Route path="/" element={<ForumMain />} />
             <Route path="/category/:id" element={<CategoryView />} />
             <Route path="/topic/:id" element={<TopicView />} />
             <Route 
               path="/login" 
-              element={user ? <Navigate to="/forum" /> : <LoginPage onLogin={login} />} 
+              element={user ? <Navigate to="/" /> : <LoginPage onLogin={login} />} 
             />
             <Route 
               path="/register" 
-              element={user ? <Navigate to="/forum" /> : <RegisterPage onLogin={login} />} 
+              element={user ? <Navigate to="/" /> : <RegisterPage onLogin={login} />} 
             />
             <Route 
               path="/profile/:id?" 
@@ -96,11 +95,11 @@ function App() {
             />
             <Route 
               path="/admin/*" 
-              element={user?.role === 'admin' ? <AdminPanel user={user} /> : <Navigate to="/forum" />} 
+              element={user?.role === 'admin' ? <AdminPanel user={user} /> : <Navigate to="/" />} 
             />
             <Route 
               path="/moderator/*" 
-              element={user?.role === 'admin' || user?.role === 'moderator' ? <ModeratorPanel user={user} /> : <Navigate to="/forum" />} 
+              element={user?.role === 'admin' || user?.role === 'moderator' ? <ModeratorPanel user={user} /> : <Navigate to="/" />} 
             />
           </Routes>
         </main>
