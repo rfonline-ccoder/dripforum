@@ -92,7 +92,7 @@ const ReportsManagement = () => {
 
   useEffect(() => {
     // Mock data
-    const mockReports = Array.from({ length, 20 }, (_, i) => ({
+    const mockReports = Array.from({ length: 20 }, (_, i) => ({
       id: i + 1,
       reporter: `Reporter${i + 1}`,
       reportedUser: `BadUser${i + 1}`,
