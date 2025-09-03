@@ -8,8 +8,7 @@ const Header = ({ user, onLogout }) => {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Главная', href: '/', active: location.pathname === '/' },
-    { name: 'Форум', href: '/forum', active: location.pathname.startsWith('/forum') },
+    { name: 'Форум', href: '/', active: location.pathname === '/' || location.pathname.startsWith('/category') || location.pathname.startsWith('/topic') },
   ];
 
   const userNavigation = [
