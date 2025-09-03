@@ -96,11 +96,18 @@ const ForumMain = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Forum Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-          Форум <span className="text-purple-400">Arizona DRIP</span>
-        </h1>
-        <p className="text-gray-300 text-lg">
+      <div className="mb-8 text-center">
+        <div className="mb-6">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-4">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-purple-300 to-purple-500 neon-glow">
+              ARIZONA
+            </span>
+          </h1>
+          <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white mb-4">
+            DRIP <span className="text-purple-400">FORUM</span>
+          </h2>
+        </div>
+        <p className="text-gray-300 text-lg max-w-2xl mx-auto">
           Добро пожаловать на официальный форум сервера Arizona DRIP
         </p>
       </div>
