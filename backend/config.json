@@ -1,0 +1,23 @@
+{
+  "server": {
+    "port": 5000,
+    "nodeEnv": "development"
+  },
+  "database": {
+    "host": "89.169.1.168",
+    "user": "hesus",
+    "password": "",
+    "database": "dripforum",
+    "port": 3306
+  },
+  "jwt": {
+    "secret": "your-super-secret-jwt-key-change-in-production"
+  },
+  "cors": {
+    "frontendUrl": "http://localhost:3000"
+  },
+  "rateLimit": {
+    "windowMs": 900000,
+    "maxRequests": 100
+  }
+}
