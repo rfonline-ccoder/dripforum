@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { User, Mail, Lock, Eye, EyeOff, UserPlus } from 'lucide-react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import config from '../config';
+
+const BACKEND_URL = config.api.backendUrl;
 const API = `${BACKEND_URL}/api`;
 
 const RegisterPage = ({ onLogin }) => {
@@ -65,11 +67,11 @@ const RegisterPage = ({ onLogin }) => {
         <div className="card p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserPlus className="w-8 h-8 text-white" />
+            <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6 float-animation">
+              <UserPlus className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Регистрация</h1>
-            <p className="text-gray-300">Создайте аккаунт для участия в форуме</p>
+            <h1 className="text-3xl font-bold gradient-text mb-3">Регистрация</h1>
+            <p className="text-gray-300 text-lg">Создайте аккаунт для участия в форуме</p>
           </div>
 
           {/* Error Message */}
@@ -201,7 +203,7 @@ const RegisterPage = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isLoading || !agreedToTerms}
-              className="btn btn-primary w-full disabled:opacity-50"
+              className="btn btn-primary w-full glow-effect disabled:opacity-50"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

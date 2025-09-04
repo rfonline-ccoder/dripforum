@@ -59,7 +59,7 @@ const Header = ({ user, onLogout }) => {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            {user ? (
+            {user && user.username ? (
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}

@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import config from '../config';
+
+const BACKEND_URL = config.api.backendUrl;
 const API = `${BACKEND_URL}/api`;
 
 const LoginPage = ({ onLogin }) => {
@@ -44,11 +46,11 @@ const LoginPage = ({ onLogin }) => {
         <div className="card p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <LogIn className="w-8 h-8 text-white" />
+            <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6 float-animation">
+              <LogIn className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Вход в аккаунт</h1>
-            <p className="text-gray-300">Добро пожаловать обратно!</p>
+            <h1 className="text-3xl font-bold gradient-text mb-3">Вход в аккаунт</h1>
+            <p className="text-gray-300 text-lg">Добро пожаловать обратно!</p>
           </div>
 
           {/* Error Message */}
@@ -118,7 +120,7 @@ const LoginPage = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="btn btn-primary w-full"
+              className="btn btn-primary w-full glow-effect"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

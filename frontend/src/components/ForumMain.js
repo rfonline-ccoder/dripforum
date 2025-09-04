@@ -11,86 +11,24 @@ const ForumMain = () => {
     onlineUsers: 0
   });
 
-  // Mock data - replace with API calls
+  // Загружаем данные с сервера
   useEffect(() => {
-    const mockCategories = [
-      {
-        id: 1,
-        name: 'Общие обсуждения',
-        description: 'Общие темы и обсуждения сервера',
-        icon: '💬',
-        topics: 1234,
-        posts: 15678,
-        lastPost: {
-          title: 'Обновление сервера 2.5',
-          author: 'AdminUser',
-          time: '5 минут назад'
-        },
-        subcategories: [
-          { id: 11, name: 'Новости сервера', topics: 45, posts: 892 },
-          { id: 12, name: 'Общение', topics: 456, posts: 7834 }
-        ]
-      },
-      {
-        id: 2,
-        name: 'Заявки',
-        description: 'Подача заявок на различные должности',
-        icon: '📝',
-        topics: 567,
-        posts: 2341,
-        lastPost: {
-          title: 'Заявка на администратора',
-          author: 'NewPlayer123',
-          time: '15 минут назад'
-        },
-        subcategories: [
-          { id: 21, name: 'Заявки в администрацию', topics: 123, posts: 456 },
-          { id: 22, name: 'Заявки на лидерство', topics: 89, posts: 234 }
-        ]
-      },
-      {
-        id: 3,
-        name: 'Жалобы',
-        description: 'Подача жалоб на игроков и администрацию',
-        icon: '⚖️',
-        topics: 234,
-        posts: 1234,
-        lastPost: {
-          title: 'Жалоба на читерство',
-          author: 'ReportUser',
-          time: '1 час назад'
-        },
-        subcategories: [
-          { id: 31, name: 'Жалобы на игроков', topics: 156, posts: 789 },
-          { id: 32, name: 'Жалобы на администрацию', topics: 23, posts: 134 }
-        ]
-      },
-      {
-        id: 4,
-        name: 'Разное',
-        description: 'Флуд, игры и прочее',
-        icon: '🎮',
-        topics: 789,
-        posts: 5678,
-        lastPost: {
-          title: 'Игра в слова',
-          author: 'GamerPro',
-          time: '2 часа назад'
-        },
-        subcategories: [
-          { id: 41, name: 'Флуд', topics: 345, posts: 2345 },
-          { id: 42, name: 'Игры', topics: 234, posts: 1456 }
-        ]
+    const fetchData = async () => {
+      try {
+        // Пока что оставляем пустые массивы, так как у нас нет тем и категорий
+        setCategories([]);
+        setStats({
+          totalTopics: 0,
+          totalPosts: 0,
+          totalUsers: 0,
+          onlineUsers: 0
+        });
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
       }
-    ];
+    };
 
-    setCategories(mockCategories);
-    setStats({
-      totalTopics: 2824,
-      totalPosts: 24931,
-      totalUsers: 15234,
-      onlineUsers: 156
-    });
+    fetchData();
   }, []);
 
   return (
@@ -134,7 +72,7 @@ const ForumMain = () => {
 
       {/* Categories */}
       <div className="space-y-6">
-        {categories.map((category) => (
+        {categories.length > 0 ? categories.map((category) => (
           <div key={category.id} className="card p-0 overflow-hidden">
             {/* Category Header */}
             <div className="bg-gradient-to-r from-purple-600/20 to-cyan-600/20 p-6 border-b border-white/10">
@@ -201,7 +139,20 @@ const ForumMain = () => {
               </div>
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="card p-12 text-center">
+            <div className="text-6xl mb-4">📝</div>
+            <h3 className="text-xl font-bold text-white mb-2">Форум пуст</h3>
+            <p className="text-gray-400 mb-6">
+              Пока что здесь нет ни тем, ни категорий. 
+              <br />
+              Администраторы могут создать первые категории для обсуждений.
+            </p>
+            <div className="text-sm text-gray-500">
+              Создано тестовых пользователей: 20
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Online Users */}
@@ -212,12 +163,20 @@ const ForumMain = () => {
           <span>Сейчас на форуме: <strong className="text-purple-400">{stats.onlineUsers}</strong> пользователей</span>
         </div>
         <div className="mt-4 flex flex-wrap gap-1">
-          {Array.from({ length: 10 }).map((_, i) => (
+          {stats.onlineUsers > 0 ? (
+            <>
+              {Array.from({ length: Math.min(10, stats.onlineUsers) }).map((_, i) => (
             <span key={i} className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded">
               User{i + 1}
             </span>
           ))}
+              {stats.onlineUsers > 10 && (
           <span className="text-gray-400 text-xs px-2 py-1">и еще {stats.onlineUsers - 10}...</span>
+              )}
+            </>
+          ) : (
+            <span className="text-gray-500 text-sm">Нет пользователей онлайн</span>
+          )}
         </div>
       </div>
     </div>
