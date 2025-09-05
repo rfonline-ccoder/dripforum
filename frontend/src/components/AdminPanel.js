@@ -253,36 +253,21 @@ const UserManagement = () => {
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${getStatusColor(user.status)}`}>
-                      {user.status === 'active' ? 'Активен' : 'Забанен'}
+                    <span className={`badge ${getStatusColor(user.banned ? 'banned' : 'active')}`}>
+                      {user.banned ? 'Забанен' : 'Активен'}
                     </span>
                   </td>
-                  <td>{new Date(user.joinDate).toLocaleDateString('ru-RU')}</td>
+                  <td>{user.join_date ? new Date(user.join_date).toLocaleDateString('ru-RU') : 'Не указана'}</td>
                   <td>{user.posts}</td>
                   <td>
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => handleEditUser(user)}
-                        className="text-blue-400 hover:text-blue-300"
-                        title="Редактировать"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleViewUser(user)}
-                        className="text-yellow-400 hover:text-yellow-300"
-                        title="Просмотреть"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleBanUser(user)}
-                        className="text-red-400 hover:text-red-300"
-                        title="Забанить"
-                      >
-                        <Ban className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => window.open(`/profile/${user.username}.${user.id}`, '_blank')}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center space-x-1"
+                      title="Открыть профиль"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Профиль</span>
+                    </button>
                   </td>
                 </tr>
               )) : (
@@ -425,30 +410,114 @@ const ForumManagement = () => {
   const [topics, setTopics] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategory, setNewCategory] = useState({ name: '', description: '', order: 0 });
+  const [newCategory, setNewCategory] = useState({ name: '', description: '', icon: '', parent_id: null, position: 0 });
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [selectedCategoryForPermissions, setSelectedCategoryForPermissions] = useState(null);
+  const [categoryPermissions, setCategoryPermissions] = useState({
+    view_permissions: ['all'],
+    create_topic_permissions: ['admin'],
+    create_subcategory_permissions: ['admin'],
+    post_permissions: ['all'],
+    moderate_permissions: ['admin', 'moderator'],
+    is_locked: false,
+    is_hidden: false
+  });
 
+  // Загрузка категорий из БД
   useEffect(() => {
-    // Пока что оставляем пустой массив, так как у нас нет категорий
-    setCategories([]);
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${config.api.backendUrl}/api/categories`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data);
+        } else {
+          console.error('Ошибка загрузки категорий');
+        }
+      } catch (error) {
+        console.error('Ошибка:', error);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategory.name.trim()) {
-      const category = {
-        id: Date.now(),
-        ...newCategory,
-        topics: 0,
-        posts: 0
-      };
-      setCategories([...categories, category]);
-      setNewCategory({ name: '', description: '', order: 0 });
-      setIsAddingCategory(false);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${config.api.backendUrl}/api/categories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: newCategory.name,
+            description: newCategory.description,
+            icon: newCategory.icon,
+            parent_id: newCategory.parent_id,
+            position: newCategory.position
+          })
+        });
+        
+        if (response.ok) {
+          const createdCategory = await response.json();
+          setCategories([...categories, createdCategory]);
+          setNewCategory({ name: '', description: '', icon: '', parent_id: null, position: 0 });
+          setIsAddingCategory(false);
+        } else {
+          console.error('Ошибка создания категории');
+        }
+      } catch (error) {
+        console.error('Ошибка:', error);
+      }
     }
   };
 
   const handleDeleteCategory = (id) => {
     if (window.confirm('Вы уверены, что хотите удалить эту категорию?')) {
       setCategories(categories.filter(cat => cat.id !== id));
+    }
+  };
+
+  const handleUpdatePermissions = async () => {
+    if (!selectedCategoryForPermissions) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${config.api.backendUrl}/api/categories/${selectedCategoryForPermissions.id}/permissions`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(categoryPermissions)
+      });
+
+      if (response.ok) {
+        // Обновляем категорию в списке
+        setCategories(prev => prev.map(cat => 
+          cat.id === selectedCategoryForPermissions.id 
+            ? { ...cat, ...categoryPermissions }
+            : cat
+        ));
+        setShowPermissionsModal(false);
+        setSelectedCategoryForPermissions(null);
+        alert('Права доступа обновлены');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Ошибка обновления прав доступа');
+      }
+    } catch (error) {
+      console.error('Ошибка обновления прав доступа:', error);
+      alert('Ошибка обновления прав доступа');
     }
   };
 
@@ -468,8 +537,17 @@ const ForumManagement = () => {
       {/* Add Category Form */}
       {isAddingCategory && (
         <div className="card p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Новая категория</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h3 className="text-lg font-semibold text-white mb-4">
+            {newCategory.parent_id ? 'Новая подкатегория' : 'Новая категория'}
+          </h3>
+          {newCategory.parent_id && (
+            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-300 text-sm">
+                Создается подкатегория для: <strong>{categories.find(cat => cat.id === newCategory.parent_id)?.name}</strong>
+              </p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
               <label className="form-label">Название</label>
               <input
@@ -491,11 +569,34 @@ const ForumManagement = () => {
               />
             </div>
             <div className="form-group">
+              <label className="form-label">Иконка</label>
+              <input
+                type="text"
+                value={newCategory.icon}
+                onChange={(e) => setNewCategory({...newCategory, icon: e.target.value})}
+                className="form-input"
+                placeholder="chat, message, folder, etc."
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Родительская категория</label>
+              <select
+                value={newCategory.parent_id || ''}
+                onChange={(e) => setNewCategory({...newCategory, parent_id: e.target.value || null})}
+                className="form-input"
+              >
+                <option value="">Главная категория</option>
+                {categories.filter(cat => !cat.parent_id).map(category => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
               <label className="form-label">Порядок</label>
               <input
                 type="number"
-                value={newCategory.order}
-                onChange={(e) => setNewCategory({...newCategory, order: parseInt(e.target.value)})}
+                value={newCategory.position}
+                onChange={(e) => setNewCategory({...newCategory, position: parseInt(e.target.value)})}
                 className="form-input"
                 min="0"
               />
@@ -533,19 +634,57 @@ const ForumManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {categories.sort((a, b) => a.order - b.order).map((category) => (
-                <tr key={category.id}>
-                  <td>{category.order}</td>
-                  <td>
-                    <div className="font-medium text-white">{category.name}</div>
-                  </td>
-                  <td className="text-gray-400">{category.description}</td>
-                  <td>{category.topics}</td>
-                  <td>{category.posts}</td>
+              {categories.sort((a, b) => a.position - b.position).map((category) => (
+                <tr key={category.id} className="hover:bg-gray-700/30 cursor-pointer" onClick={() => window.open(`/category.${category.id}`, '_blank')}>
+                  <td>{category.position}</td>
                   <td>
                     <div className="flex items-center space-x-2">
-                      <button className="text-blue-400 hover:text-blue-300" title="Редактировать">
-                        <Edit className="w-4 h-4" />
+                      {category.icon && <span className="text-lg">{category.icon}</span>}
+                      <div>
+                        <div className="font-medium text-white">{category.name}</div>
+                        {category.parent_id && (
+                          <div className="text-xs text-gray-500">Подкатегория</div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-gray-400">{category.description}</td>
+                  <td>{category.topics_count || 0}</td>
+                  <td>{category.posts_count || 0}</td>
+                  <td>
+                    <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={() => window.open(`/category.${category.id}`, '_blank')}
+                        className="text-green-400 hover:text-green-300" 
+                        title="Открыть категорию"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setNewCategory({
+                            name: '',
+                            description: '',
+                            icon: '📁',
+                            parent_id: category.id,
+                            position: 0
+                          });
+                          setIsAddingCategory(true);
+                        }}
+                        className="text-blue-400 hover:text-blue-300" 
+                        title="Создать подкатегорию"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedCategoryForPermissions(category);
+                          setShowPermissionsModal(true);
+                        }}
+                        className="text-yellow-400 hover:text-yellow-300" 
+                        title="Настройки прав доступа"
+                      >
+                        <Settings className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDeleteCategory(category.id)}

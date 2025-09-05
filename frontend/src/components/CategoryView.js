@@ -1,48 +1,93 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MessageCircle, Eye, Clock, Pin, Lock, Star, ChevronLeft, Plus } from 'lucide-react';
+import config from '../config';
 
 const CategoryView = () => {
   const { id } = useParams();
   const [category, setCategory] = useState(null);
   const [topics, setTopics] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [user, setUser] = useState(null);
   const [sortBy, setSortBy] = useState('latest');
   const [currentPage, setCurrentPage] = useState(1);
   const topicsPerPage = 20;
 
   useEffect(() => {
-    // Mock data - replace with API call
-    const mockCategory = {
-      id: parseInt(id),
-      name: 'Общение',
-      description: 'Общие темы для обсуждения',
-      totalTopics: 456,
-      totalPosts: 7834
+    const fetchCategoryData = async () => {
+      try {
+        // Извлекаем ID из формата category.1 или просто 1
+        const categoryId = id.includes('.') ? id.split('.')[1] : id;
+        
+        const token = localStorage.getItem('token');
+        
+        // Загружаем информацию о пользователе
+        if (token) {
+          try {
+            const userResponse = await fetch(`${config.api.backendUrl}/api/auth/me`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              setUser(userData.user);
+            }
+          } catch (error) {
+            console.error('Ошибка загрузки пользователя:', error);
+          }
+        }
+        
+        const response = await fetch(`${config.api.backendUrl}/api/categories/${categoryId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const categoryData = await response.json();
+          setCategory(categoryData);
+        } else {
+          console.error('Ошибка загрузки категории:', response.statusText);
+          // Fallback данные
+          setCategory({
+            id: categoryId,
+            name: 'Категория не найдена',
+            description: 'Категория не найдена или была удалена',
+            totalTopics: 0,
+            totalPosts: 0
+          });
+        }
+
+        // Загружаем все категории для поиска подкатегорий
+        const allCategoriesResponse = await fetch(`${config.api.backendUrl}/api/categories`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (allCategoriesResponse.ok) {
+          const allCategories = await allCategoriesResponse.json();
+          const categorySubcategories = allCategories.filter(cat => cat.parent_id === categoryId);
+          setSubcategories(categorySubcategories);
+        }
+
+        // TODO: Загрузить темы из API
+        setTopics([]);
+      } catch (error) {
+        console.error('Ошибка загрузки данных категории:', error);
+        setCategory({
+          id: id,
+          name: 'Ошибка загрузки',
+          description: 'Не удалось загрузить данные категории',
+          totalTopics: 0,
+          totalPosts: 0
+        });
+        setTopics([]);
+      }
     };
 
-    const mockTopics = Array.from({ length: 45 }, (_, i) => ({
-      id: i + 1,
-      title: i === 0 ? 'Правила раздела - обязательно к прочтению!' : `Тема ${i + 1}: Обсуждение игровых механик`,
-      author: {
-        id: Math.floor(Math.random() * 1000) + 1,
-        username: `User${Math.floor(Math.random() * 1000) + 1}`,
-        avatar: null,
-        role: i === 0 ? 'admin' : ['user', 'moderator', 'vip'][Math.floor(Math.random() * 3)]
-      },
-      replies: Math.floor(Math.random() * 100),
-      views: Math.floor(Math.random() * 1000) + 100,
-      lastPost: {
-        author: `LastUser${Math.floor(Math.random() * 100) + 1}`,
-        time: `${Math.floor(Math.random() * 60) + 1} минут назад`
-      },
-      isPinned: i === 0,
-      isLocked: i === 2,
-      hasUnread: Math.random() > 0.7,
-      tags: i % 3 === 0 ? ['Важное'] : i % 5 === 0 ? ['Вопрос', 'Помощь'] : []
-    }));
-
-    setCategory(mockCategory);
-    setTopics(mockTopics);
+    fetchCategoryData();
   }, [id]);
 
   const getRoleColor = (role) => {
@@ -112,10 +157,14 @@ const CategoryView = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{category.name}</h1>
             <p className="text-gray-300">{category.description}</p>
           </div>
-          <Link to={`/create-topic/${category.id}`} className="btn btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Создать тему
-          </Link>
+          {user?.role === 'admin' && (
+            <div className="flex items-center space-x-3">
+              <Link to={`/create-topic.${category.id}`} className="btn btn-primary flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Создать тему
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-6 text-sm text-gray-400">
@@ -129,6 +178,30 @@ const CategoryView = () => {
           </span>
         </div>
       </div>
+
+      {/* Subcategories */}
+      {subcategories.length > 0 && (
+        <div className="card p-6 mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">Подкатегории</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {subcategories.map((subcategory) => (
+              <Link
+                key={subcategory.id}
+                to={`/category.${subcategory.id}`}
+                className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 transition-colors border border-gray-700"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="text-2xl">{subcategory.icon || '📁'}</div>
+                  <div>
+                    <h3 className="font-semibold text-white">{subcategory.name}</h3>
+                    <p className="text-sm text-gray-400">{subcategory.description}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sort Controls */}
       <div className="flex items-center justify-between mb-6">
@@ -157,10 +230,10 @@ const CategoryView = () => {
         </div>
 
         <div className="divide-y divide-white/10">
-          {paginatedTopics.map((topic) => (
+          {paginatedTopics.length > 0 ? paginatedTopics.map((topic) => (
             <Link
               key={topic.id}
-              to={`/topic/${topic.id}`}
+              to={`/topic.${topic.id}`}
               className="block p-4 hover:bg-white/5 transition-colors group"
             >
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
@@ -230,7 +303,27 @@ const CategoryView = () => {
                 </div>
               </div>
             </Link>
-          ))}
+          )) : (
+            <div className="p-12 text-center">
+              <div className="text-6xl mb-4">📝</div>
+              <h3 className="text-xl font-bold text-white mb-2">Нет тем</h3>
+              <p className="text-gray-400 mb-6">
+                В этой категории пока нет тем для обсуждения.
+                {user?.role === 'admin' && (
+                  <>
+                    <br />
+                    Вы можете создать первую тему.
+                  </>
+                )}
+              </p>
+              {user?.role === 'admin' && (
+                <Link to={`/create-topic.${category.id}`} className="btn btn-primary flex items-center gap-2 mx-auto w-fit">
+                  <Plus className="w-4 h-4" />
+                  Создать первую тему
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

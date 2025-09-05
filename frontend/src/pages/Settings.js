@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { User, Lock, Save, Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
 import config from '../config';
 
-const Settings = () => {
+const Settings = ({ currentUser, onUpdate }) => {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
+  
+  console.log('🔍 Settings component received:', { 
+    currentUser: currentUser ? { id: currentUser.id, username: currentUser.username } : null, 
+    onUpdate: typeof onUpdate 
+  });
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -27,23 +31,16 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    // Получаем текущего пользователя из localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      setCurrentUser(user);
+    if (currentUser) {
       setFormData({
-        username: user.username || '',
-        email: user.email || '',
-        bio: user.bio || '',
-        signature: user.signature || '',
-        avatar_url: user.avatar_url || ''
+        username: currentUser.username || '',
+        email: currentUser.email || '',
+        bio: currentUser.bio || '',
+        signature: currentUser.signature || '',
+        avatar_url: currentUser.avatar_url || ''
       });
-    } else {
-      // Если нет пользователя, перенаправляем на логин
-      navigate('/login');
     }
-  }, [navigate]);
+  }, [currentUser]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -86,10 +83,11 @@ const Settings = () => {
       if (response.ok) {
         setMessage({ type: 'success', text: 'Профиль успешно обновлен!' });
         
-        // Обновляем пользователя в localStorage
+        // Обновляем пользователя в App.js
         const updatedUser = { ...currentUser, ...formData };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        setCurrentUser(updatedUser);
+        if (onUpdate) {
+          onUpdate(updatedUser);
+        }
       } else {
         const error = await response.json();
         setMessage({ type: 'error', text: error.message || 'Ошибка обновления профиля' });
@@ -148,13 +146,18 @@ const Settings = () => {
   };
 
   if (!currentUser) {
-    return <div>Загрузка...</div>;
+    console.log('❌ Settings: No currentUser, redirecting to login');
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
+        <div className="text-white">Загрузка...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 animate-fadeIn">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
       <div className="container mx-auto px-4 py-8">
-        <div className="card max-w-2xl mx-auto animate-slideUp">
+        <div className="card max-w-2xl mx-auto">
           <div className="p-6">
             {/* Заголовок */}
             <div className="flex items-center justify-between mb-6">
@@ -170,6 +173,11 @@ const Settings = () => {
                   Настройки аккаунта
                 </h2>
               </div>
+            </div>
+            
+            {/* Отладочная информация */}
+            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm">
+              <strong>Отладка:</strong> Пользователь: {currentUser?.username} (ID: {currentUser?.id})
             </div>
 
             {/* Сообщения */}

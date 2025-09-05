@@ -7,12 +7,20 @@ const Header = ({ user, onLogout }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
 
+  // Функция для получения числового ID из UUID
+  const getNumericId = (uuid) => {
+    if (!uuid) return '0';
+    // Берем первые 8 символов UUID и конвертируем в число
+    const hex = uuid.replace(/-/g, '').substring(0, 8);
+    return parseInt(hex, 16).toString();
+  };
+
   const navigation = [
     { name: 'Форум', href: '/', active: location.pathname === '/' || location.pathname.startsWith('/category') || location.pathname.startsWith('/topic') },
   ];
 
   const userNavigation = [
-    { name: 'Профиль', href: `/profile/${user?.id}`, icon: User },
+    { name: 'Профиль', href: `/profile/${user?.username}.${getNumericId(user?.id)}`, icon: User },
     { name: 'Настройки', href: '/settings', icon: Settings },
   ];
 

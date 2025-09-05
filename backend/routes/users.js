@@ -64,6 +64,280 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Получить пользователя по username
+router.get('/username/:username', authenticateToken, async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(config.database);
+    
+    const [rows] = await connection.execute(`
+      SELECT 
+        u.*, ug.name as group_name, ug.color as group_color, ug.css_styles,
+        ug.permissions
+      FROM users u
+      LEFT JOIN user_groups ug ON u.group_id = ug.id
+      WHERE u.username = ?
+    `, [req.params.username]);
+    
+    if (rows.length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    await connection.end();
+    
+    const userData = rows[0];
+    // Убираем IP и связанные аккаунты - таблиц нет
+    userData.ip_info = [];
+    userData.related_accounts = [];
+    
+    res.json(userData);
+  } catch (error) {
+    console.error('Ошибка получения пользователя по username:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить IP пользователя
+router.get('/:id/ip', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.usergroup !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const connection = await mysql.createConnection(config.database);
+    
+    const [rows] = await connection.execute(`
+      SELECT last_ip as ip
+      FROM users
+      WHERE id = ?
+    `, [req.params.id]);
+    
+    if (rows.length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    await connection.end();
+    res.json({ ip: rows[0].ip || 'Неизвестно' });
+  } catch (error) {
+    console.error('Ошибка получения IP:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить группы пользователя
+router.get('/:id/groups', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const connection = await mysql.createConnection(config.database);
+    
+    // Получаем все группы пользователя из таблицы membership
+    const [rows] = await connection.execute(`
+      SELECT ug.*, ugm.assigned_at, ugm.assigned_by, ugm.reason
+      FROM user_groups_membership ugm
+      INNER JOIN user_groups ug ON ugm.group_id = ug.id
+      WHERE ugm.user_id = ?
+      ORDER BY ugm.assigned_at DESC
+    `, [req.params.id]);
+    
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.error('Ошибка получения групп пользователя:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Добавить группы пользователю
+router.post('/:id/groups', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const { group_ids, reason } = req.body;
+    const connection = await mysql.createConnection(config.database);
+    
+    // Добавляем каждую группу в таблицу membership
+    if (group_ids && group_ids.length > 0) {
+      for (const groupId of group_ids) {
+        try {
+          await connection.execute(`
+            INSERT INTO user_groups_membership (user_id, group_id, assigned_by, reason, assigned_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+            assigned_by = VALUES(assigned_by),
+            reason = VALUES(reason),
+            assigned_at = NOW()
+          `, [req.params.id, groupId, req.user.id, reason || 'Добавлено администратором']);
+        } catch (insertError) {
+          // Игнорируем ошибки дублирования
+          if (insertError.code !== 'ER_DUP_ENTRY') {
+            throw insertError;
+          }
+        }
+      }
+    }
+    
+    await connection.end();
+    
+    logForumAction('USER_GROUPS_ADDED', req.user.id, req.user.username, {
+      target_user_id: req.params.id,
+      group_ids: group_ids,
+      reason: reason
+    });
+    
+    res.json({ message: 'Группы добавлены пользователю' });
+  } catch (error) {
+    console.error('Ошибка добавления групп:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Удалить группы у пользователя
+router.delete('/:id/groups', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const { group_ids } = req.body;
+    const connection = await mysql.createConnection(config.database);
+    
+    if (group_ids && group_ids.length > 0) {
+      // Удаляем конкретные группы
+      const placeholders = group_ids.map(() => '?').join(',');
+      await connection.execute(`
+        DELETE FROM user_groups_membership 
+        WHERE user_id = ? AND group_id IN (${placeholders})
+      `, [req.params.id, ...group_ids]);
+    } else {
+      // Удаляем все группы пользователя
+      await connection.execute(`
+        DELETE FROM user_groups_membership WHERE user_id = ?
+      `, [req.params.id]);
+    }
+    
+    await connection.end();
+    
+    logForumAction('USER_GROUPS_REMOVED', req.user.id, req.user.username, {
+      target_user_id: req.params.id,
+      group_ids: group_ids
+    });
+    
+    res.json({ message: 'Группы удалены у пользователя' });
+  } catch (error) {
+    console.error('Ошибка удаления групп:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить связанные аккаунты по IP
+router.get('/:id/related-accounts', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const connection = await mysql.createConnection(config.database);
+    
+    // Сначала получаем IP пользователя
+    const [userRows] = await connection.execute(`
+      SELECT last_ip
+      FROM users
+      WHERE id = ?
+    `, [req.params.id]);
+    
+    if (userRows.length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const userIp = userRows[0].last_ip;
+    
+    // Ищем всех пользователей с таким же IP
+    const [rows] = await connection.execute(`
+      SELECT 
+        u.id, u.username, u.created_at, u.role
+      FROM users u
+      WHERE u.last_ip = ? AND u.id != ?
+      ORDER BY u.created_at DESC
+    `, [userIp, req.params.id]);
+    
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.error('Ошибка получения связанных аккаунтов:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Разбанить пользователя
+router.post('/:id/unban', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.usergroup !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const connection = await mysql.createConnection(config.database);
+    
+    await connection.execute(`
+      UPDATE users 
+      SET is_banned = 0, ban_reason = NULL, ban_expires = NULL
+      WHERE id = ?
+    `, [req.params.id]);
+    
+    await connection.end();
+    
+    logForumAction('USER_UNBANNED', req.user.id, req.user.username, {
+      target_user_id: req.params.id
+    });
+    
+    res.json({ message: 'Пользователь разбанен' });
+  } catch (error) {
+    console.error('Ошибка разбана:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Размутить пользователя
+router.post('/:id/unmute', authenticateToken, async (req, res) => {
+  try {
+    // Проверяем права администратора
+    if (req.user.usergroup !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+
+    const connection = await mysql.createConnection(config.database);
+    
+    await connection.execute(`
+      UPDATE users 
+      SET is_muted = 0, mute_reason = NULL, mute_expires = NULL
+      WHERE id = ?
+    `, [req.params.id]);
+    
+    await connection.end();
+    
+    logForumAction('USER_UNMUTED', req.user.id, req.user.username, {
+      target_user_id: req.params.id
+    });
+    
+    res.json({ message: 'Пользователь размучен' });
+  } catch (error) {
+    console.error('Ошибка размута:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // Обновить профиль пользователя
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
@@ -214,10 +488,10 @@ router.put('/:id/change-group', authenticateToken, async (req, res) => {
   }
 });
 
-// Выдать достижение пользователю
-router.post('/:id/give-achievement', authenticateToken, async (req, res) => {
+// Выдать достижения пользователю
+router.post('/:id/achievements', authenticateToken, async (req, res) => {
   try {
-    const { achievementId } = req.body;
+    const { achievement_ids, reason } = req.body;
     
     // Проверяем права (только админ)
     if (req.user.role !== 'admin') {
@@ -226,45 +500,80 @@ router.post('/:id/give-achievement', authenticateToken, async (req, res) => {
     
     const connection = await mysql.createConnection(config.database);
     
-    // Проверяем существование достижения
-    const [achievementRows] = await connection.execute(
-      'SELECT * FROM achievements WHERE id = ?',
-      [achievementId]
-    );
-    
-    if (achievementRows.length === 0) {
-      await connection.end();
-      return res.status(404).json({ error: 'Достижение не найдено' });
+    // Выдаем каждое достижение
+    if (achievement_ids && achievement_ids.length > 0) {
+      for (const achievementId of achievement_ids) {
+        try {
+          await connection.execute(`
+            INSERT INTO user_achievements (user_id, achievement_id, awarded_by, reason, awarded_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+            awarded_by = VALUES(awarded_by),
+            reason = VALUES(reason),
+            awarded_at = NOW()
+          `, [req.params.id, achievementId, req.user.id, reason || 'Выдано администратором']);
+        } catch (insertError) {
+          // Игнорируем ошибки дублирования
+          if (insertError.code !== 'ER_DUP_ENTRY') {
+            throw insertError;
+          }
+        }
+      }
     }
-    
-    // Проверяем, есть ли уже это достижение у пользователя
-    const [existingRows] = await connection.execute(
-      'SELECT * FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
-      [req.params.id, achievementId]
-    );
-    
-    if (existingRows.length > 0) {
-      await connection.end();
-      return res.status(400).json({ error: 'У пользователя уже есть это достижение' });
-    }
-    
-    // Выдаем достижение
-    await connection.execute(`
-      INSERT INTO user_achievements (user_id, achievement_id, awarded_at)
-      VALUES (?, ?, NOW())
-    `, [parseInt(req.params.id), achievementId]);
     
     await connection.end();
     
     // Логируем действие
-    logForumAction('ACHIEVEMENT_GIVEN', req.user.id, req.user.username, {
+    logForumAction('ACHIEVEMENTS_GIVEN', req.user.id, req.user.username, {
       targetUserId: req.params.id,
-      achievementId
+      achievement_ids: achievement_ids,
+      reason: reason
     });
     
-    res.json({ message: 'Достижение выдано', success: true });
+    res.json({ message: 'Достижения выданы', success: true });
   } catch (error) {
-    console.error('Ошибка выдачи достижения:', error);
+    console.error('Ошибка выдачи достижений:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Удалить достижения у пользователя
+router.delete('/:id/achievements', authenticateToken, async (req, res) => {
+  try {
+    const { achievement_ids } = req.body;
+    
+    // Проверяем права (только админ)
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+    
+    const connection = await mysql.createConnection(config.database);
+    
+    if (achievement_ids && achievement_ids.length > 0) {
+      // Удаляем конкретные достижения
+      const placeholders = achievement_ids.map(() => '?').join(',');
+      await connection.execute(`
+        DELETE FROM user_achievements 
+        WHERE user_id = ? AND achievement_id IN (${placeholders})
+      `, [req.params.id, ...achievement_ids]);
+    } else {
+      // Удаляем все достижения пользователя
+      await connection.execute(`
+        DELETE FROM user_achievements WHERE user_id = ?
+      `, [req.params.id]);
+    }
+    
+    await connection.end();
+    
+    // Логируем действие
+    logForumAction('ACHIEVEMENTS_REMOVED', req.user.id, req.user.username, {
+      targetUserId: req.params.id,
+      achievement_ids: achievement_ids
+    });
+    
+    res.json({ message: 'Достижения удалены', success: true });
+  } catch (error) {
+    console.error('Ошибка удаления достижений:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

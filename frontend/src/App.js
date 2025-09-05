@@ -110,15 +110,24 @@ function App() {
     );
   }
 
+  console.log('🔍 App render:', { user: user ? { id: user.id, username: user.username } : null });
+  
   return (
     <div className="App">
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
         <Header user={user} onLogout={logout} />
         <main className="main-content">
           <Routes>
             <Route path="/" element={<ForumMain />} />
             <Route path="/category/:id" element={<CategoryView />} />
+            <Route path="/category.:id" element={<CategoryView />} />
             <Route path="/topic/:id" element={<TopicView />} />
+            <Route path="/topic.:id" element={<TopicView />} />
             <Route 
               path="/login" 
               element={user ? <Navigate to="/" /> : <LoginPage onLogin={login} />} 
@@ -128,7 +137,7 @@ function App() {
               element={user ? <Navigate to="/" /> : <RegisterPage onLogin={login} />} 
             />
             <Route 
-              path="/profile/:id?" 
+              path="/profile/:usernameAndId?" 
               element={user ? <UserProfile currentUser={user} onUpdate={setUser} /> : <Navigate to="/login" />} 
             />
             <Route 
@@ -137,7 +146,7 @@ function App() {
             />
             <Route 
               path="/settings" 
-              element={user ? <Settings /> : <Navigate to="/login" />} 
+              element={user ? <Settings currentUser={user} onUpdate={setUser} /> : <Navigate to="/login" />} 
             />
             <Route 
               path="/admin/*" 

@@ -12,28 +12,33 @@ const TopicView = () => {
   const postsPerPage = 10;
 
   useEffect(() => {
-    // Mock data - replace with API call
-    const mockTopic = {
-      id: parseInt(id),
-      title: 'Обсуждение нового обновления сервера',
-      categoryId: 1,
-      categoryName: 'Общение',
-      author: {
-        id: 1,
-        username: 'AdminUser',
-        role: 'admin',
-        avatar: null,
-        joinDate: '2023-01-15',
-        posts: 1234,
-        reputation: 567
-      },
-      createdAt: '2024-01-15T10:30:00Z',
-      views: 1256,
-      replies: 45,
-      isPinned: true,
-      isLocked: false,
-      tags: ['Важное', 'Обновления']
-    };
+    const fetchTopicData = async () => {
+      try {
+        // Извлекаем ID из формата topic.1 или просто 1
+        const topicId = id.includes('.') ? id.split('.')[1] : id;
+        
+        // TODO: Загрузить данные темы из API
+        const mockTopic = {
+          id: topicId,
+          title: 'Обсуждение нового обновления сервера',
+          categoryId: 1,
+          categoryName: 'Общение',
+          author: {
+            id: 1,
+            username: 'AdminUser',
+            role: 'admin',
+            avatar: null,
+            joinDate: '2023-01-15',
+            posts: 1234,
+            reputation: 567
+          },
+          createdAt: '2024-01-15T10:30:00Z',
+          views: 1256,
+          replies: 45,
+          isPinned: true,
+          isLocked: false,
+          tags: ['Важное', 'Обновления']
+        };
 
     const mockPosts = Array.from({ length: 15 }, (_, i) => ({
       id: i + 1,
@@ -55,8 +60,36 @@ const TopicView = () => {
       isLiked: Math.random() > 0.7
     }));
 
-    setTopic(mockTopic);
-    setPosts(mockPosts);
+        setTopic(mockTopic);
+        setPosts(mockPosts);
+      } catch (error) {
+        console.error('Ошибка загрузки данных темы:', error);
+        setTopic({
+          id: id,
+          title: 'Ошибка загрузки',
+          categoryId: 1,
+          categoryName: 'Ошибка',
+          author: {
+            id: 1,
+            username: 'Система',
+            role: 'admin',
+            avatar: null,
+            joinDate: '2023-01-01',
+            posts: 0,
+            reputation: 0
+          },
+          createdAt: new Date().toISOString(),
+          views: 0,
+          replies: 0,
+          isPinned: false,
+          isLocked: false,
+          tags: []
+        });
+        setPosts([]);
+      }
+    };
+
+    fetchTopicData();
   }, [id]);
 
   const getRoleColor = (role) => {
@@ -111,7 +144,7 @@ const TopicView = () => {
       <nav className="flex items-center space-x-2 text-sm text-gray-400 mb-6">
         <Link to="/" className="hover:text-purple-400 transition-colors">Форум</Link>
         <ChevronLeft className="w-4 h-4 rotate-180" />
-        <Link to={`/category/${topic.categoryId}`} className="hover:text-purple-400 transition-colors">
+        <Link to={`/category.${topic.categoryId}`} className="hover:text-purple-400 transition-colors">
           {topic.categoryName}
         </Link>
         <ChevronLeft className="w-4 h-4 rotate-180" />
