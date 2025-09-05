@@ -30,11 +30,11 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
 # Настройки MySQL базы данных
-MYSQL_HOST=89.169.1.168
+MYSQL_HOST=
 MYSQL_PORT=3306
 MYSQL_USER=hesus
 MYSQL_PASSWORD=
-MYSQL_DATABASE=dripforum
+MYSQL_DATABASE=
 
 # JWT секрет для токенов
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -50,7 +50,7 @@ npm run dev
 ```
 
 Backend автоматически:
-- ✅ Подключится к MySQL на `89.169.1.168`
+- ✅ Подключится к MySQL
 - ✅ Создаст все необходимые таблицы
 - ✅ Добавит начальные данные
 - ✅ **НЕ ОЧИСТИТ** существующие данные
